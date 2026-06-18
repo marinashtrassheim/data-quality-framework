@@ -61,25 +61,8 @@ docker compose --profile tools up generator
 └── docker-compose.yaml
 ```
 
-## Local Python setup (optional, for IDE)
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Copy `.env.example` to `.env` if you run components outside Docker.
-
 ## Email behavior
 
 One email is sent **per DAG run** when that run has failures — not per generator batch. The DAG runs every minute and processes everything in `incoming/` at that moment. A full smoke test (200 files over ~2 minutes) typically produces **2 failure emails**.
 
 Data Docs for successful files are stored in MinIO under `data_docs/` (preview via MinIO Console).
-
-## Push to GitHub
-
-```bash
-git remote add origin git@github.com:marinashtrassheim/-data-quality-framework.git
-git push -u origin main
-```
