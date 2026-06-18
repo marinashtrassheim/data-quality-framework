@@ -1,0 +1,26 @@
+# Python
+.venv/
+venv*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Secrets and local config
+.env
+
+# Runtime data
+minio_data/
+.airflow_home/
+
+# Docker
+*.log

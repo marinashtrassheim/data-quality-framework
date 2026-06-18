@@ -1,0 +1,107 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - data-quality
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - data-quality
+
+  airflow:
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    container_name: airflow
+    command: bash /opt/airflow/scripts/airflow-entrypoint.sh
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    environment:
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      _AIRFLOW_WWW_USER_EMAIL: admin@example.com
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      PYTHONPATH: /opt/airflow
+      AIRFLOW__SMTP__SMTP_HOST: mailhog
+      AIRFLOW__SMTP__SMTP_PORT: "1025"
+      AIRFLOW__SMTP__SMTP_MAIL_FROM: data-quality@example.com
+      AIRFLOW__SMTP__SMTP_SSL: "False"
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: data-quality
+      INCOMING_PREFIX: incoming
+      SODA_CHECKS_PATH: /opt/airflow/soda/checks.yml
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      EMAIL_SENDER: data-quality@example.com
+      EMAIL_RECIPIENTS: team@example.com
+      SMTP_USE_TLS: "false"
+    volumes:
+      - ./scripts/airflow-entrypoint.sh:/opt/airflow/scripts/airflow-entrypoint.sh
+      - ./dags:/opt/airflow/dags
+      - ./common:/opt/airflow/common
+      - ./soda:/opt/airflow/soda
+    networks:
+      - data-quality
+    depends_on:
+      minio:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+  generator:
+    build:
+      context: .
+      dockerfile: generator/Dockerfile
+    container_name: generator
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-minioadmin}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-minioadmin}
+      - S3_BUCKET=${S3_BUCKET:-data-quality}
+      - INCOMING_PREFIX=${INCOMING_PREFIX:-incoming}
+      - FILES_PER_BATCH=${FILES_PER_BATCH:-50}
+      - GENERATOR_INVALID_RATIO=${GENERATOR_INVALID_RATIO:-0.3}
+      - DURATION_SEC=${DURATION_SEC:-120}
+      - BATCH_INTERVAL=${BATCH_INTERVAL:-30}
+    networks:
+      - data-quality
+    depends_on:
+      minio:
+        condition: service_healthy
+    profiles:
+      - tools
+
+networks:
+  data-quality:
+    driver: bridge

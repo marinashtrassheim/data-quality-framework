@@ -1,0 +1,8 @@
+# Fast structural checks only — value/range/format rules are in Great Expectations.
+checks for transactions:
+  - row_count > 0
+  - missing_count(transaction_id) = 0
+  - missing_count(user_id) = 0
+  - missing_count(payment_method) = 0
+  - missing_count(event_time) = 0
+  - missing_count(status) = 0
