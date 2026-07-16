@@ -23,18 +23,26 @@ The generator marks ~30% of files as invalid (configurable via `GENERATOR_INVALI
 
 **Prerequisites:** Docker, Docker Compose
 
+Run these two steps in order, from a clean state (no leftover containers from a previous run):
+
 ```bash
-# Start infrastructure
+# 1. Start infrastructure and wait for Airflow to report "healthy" (not just "running") —
+#    this can take 30-60s: DB migration + admin user creation + scheduler/webserver startup.
 docker compose up -d minio mailhog airflow
+docker compose ps   # re-run until the airflow row shows "healthy"
 
-# Wait until Airflow is healthy (~15s), then open UI
-open http://localhost:8080   # admin / admin
-
-# Full end-to-end test (generator + wait for DAG)
+# 2. Full end-to-end test (generator + wait for DAG)
 bash scripts/smoke-test.sh
 ```
 
-**Manual generator run:**
+> ⚠️ `scripts/smoke-test.sh` does **not** start the stack — it only waits on an already-running
+> `airflow` container. If you see `No such container: airflow` or `Airflow did not become
+> healthy in time`, the stack isn't up (e.g. you ran `docker compose down` since step 1) —
+> re-run step 1 before running the script again.
+
+Once healthy, the UI is at http://localhost:8080 (admin / admin).
+
+**Manual generator run** (without the smoke test):
 
 ```bash
 docker compose --profile tools up generator
