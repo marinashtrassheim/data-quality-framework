@@ -88,7 +88,7 @@ class BatchProcessor:
                         "details": exc.details,
                     }
                 )
-                self._move_to_failed(s3_key)
+                self._safe_move_to_failed(s3_key)
             except Exception as exc:
                 summary["failed"] += 1
                 summary["errors"].append(
@@ -100,7 +100,7 @@ class BatchProcessor:
                     }
                 )
                 logger.exception("Unexpected error while processing %s", s3_key)
-                self._move_to_failed(s3_key)
+                self._safe_move_to_failed(s3_key)
 
         logger.info(
             "Batch finished: processed=%s failed=%s total=%s",
@@ -136,6 +136,16 @@ class BatchProcessor:
         dest_key = f"{self.settings.failed_prefix.rstrip('/')}/{Path(s3_key).name}"
         self.minio.move_object(s3_key, dest_key)
         logger.warning("File %s moved to %s", s3_key, dest_key)
+
+    def _safe_move_to_failed(self, s3_key: str) -> None:
+        try:
+            self._move_to_failed(s3_key)
+        except Exception:
+            logger.exception(
+                "Failed to move %s into %s after a processing failure; "
+                "it will be retried on the next DAG run.",
+                s3_key, self.settings.failed_prefix,
+            )
 
     def _send_batch_failure_email(self, summary: Dict[str, Any]) -> None:
         body = EmailNotifier.format_batch_failure_email(summary)

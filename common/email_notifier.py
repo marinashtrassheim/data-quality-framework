@@ -21,12 +21,12 @@ class EmailNotifier:
             default_recipients: Optional[List[str]] = None,
             use_tls: bool = True,
     ):
-            self.smtp_host = smtp_host
-            self.smtp_port = smtp_port
-            self.sender_email = sender_email
-            self.sender_password = sender_password
-            self.default_recipients = default_recipients or []
-            self.use_tls = use_tls
+        self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
+        self.sender_email = sender_email
+        self.sender_password = sender_password
+        self.default_recipients = default_recipients or []
+        self.use_tls = use_tls
 
     def send_alert(
             self,

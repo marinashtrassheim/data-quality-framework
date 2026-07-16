@@ -55,9 +55,19 @@ class MinIOClient:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType=content_type)
 
     def move_object(self, source_key: str, dest_key: str) -> None:
+        """Copy then delete. If delete fails after a successful copy, the object
+        is already safe at dest_key — log and leave the stale source behind
+        instead of raising, so callers don't re-copy it somewhere else."""
         copy_source = {'Bucket': self.bucket, 'Key': source_key}
         self.client.copy_object(Bucket=self.bucket, CopySource=copy_source, Key=dest_key)
-        self.client.delete_object(Bucket=self.bucket, Key=source_key)
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=source_key)
+        except ClientError as e:
+            logger.error(
+                "Copied %s to %s but failed to delete source: %s. "
+                "Source will remain until it is cleaned up or reprocessed.",
+                source_key, dest_key, e,
+            )
 
     def delete_object(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
